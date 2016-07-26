@@ -24,13 +24,14 @@ public class FileTable {
         Inode inode = null;
         short iNumber = -1;
         while(true) {
-            if(filename.equals("/")) {
+            if(filename.equals("/")) {  // in root dir so stay at 0
                 iNumber = 0;
             } else {
-                iNumber = dir.namei(filename);
+                iNumber = dir.namei(filename);  // not in root dir
             }
 
-            if(iNumber >= 0) {
+            if(iNumber >= 0) {  // there has to be a file
+                // setup to load inode from disk to memory
                 inode = new Inode(iNumber);
                 if(mode.equals("r")) {
                     if(inode.flag != 0 && inode.flag != 1) {    // not unused nor used
@@ -81,10 +82,8 @@ public class FileTable {
         // return a reference to this file (structure) table entry
     }
 
-    /*
-     *
-     * 0 = unused, 1 = used, 2 = read, 3 = write, 4 = delete.
-     */
+    // free memory and store on disk instead
+    // 0 = unused, 1 = used, 2 = read, 3 = write, 4 = delete.
     public synchronized boolean ffree( FileTableEntry fte ) {
         // receive a file table entry reference
         if(table.removeElement(fte)) {  // fte is a file table entry
