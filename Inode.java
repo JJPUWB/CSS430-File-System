@@ -1,45 +1,54 @@
-//Inode.java
-//Jacob J. Parkinson
-//Initial code provided by Professor Michael Panitz
-
+/**
+ * Created by Michael on 7/23/2015.
+ */
 public class Inode
 {
+    private final static int iNodeSize = 32;       // fix to 32 bytes
+    private final static int directSize = 11;      // # direct pointers
 
-	private final static int iNodeSize = 32;		//fix to 32B
-	private final static int directSize = 11;		//# direct ptrs
-	
-	public int length;					//file size in B
-	public short count;					//# file-table entries pointing to this
-	public short flag;					//0 = unused, 1 = used, ...
-	public short direct[] = new short[directSize];	//direct ptrs
-	public short indirect;				//a single indirect ptr
+    public int length;                             // file size in bytes
+    public short count;                            // # file-table entries pointing to this
+    public short flag;                             // 0 = unused, 1 = used, ...
+    public short direct[] = new short[directSize]; // direct pointers
+    public short indirect;                         // a indirect pointer
 
-	//Default constructor
-	Inode()
-	{
-		length = 0;
-		count = 0;
-		flag = 1;
-		
-		for (int i = 0; i < directSize; i++)
-		{
-			direct[i] = -1;
-		}
-		indirect = -1;
-	}
+    Inode( )
+    {                                     // a default constructor
+        length = 0;
+        count = 0;
+        flag = 1;
+        for ( int i = 0; i < directSize; i++ )
+        {
+            direct[i] = -1;
+        }
+        indirect = -1;
+    }
 
-	//retrieving the inode from the disk
-	Inode (short iNumber)
-	{
-		//To be implemented!
-	}
+    Inode( short iNumber )  // retrieving inode from disk
+    {
+        // Will be implemented later
 
-	//save to the disk as the i-th node
-	int toDisk (short iNumber)
-	{
-		//To be implemented!
-		return 0;
-	}
+
+    }
+
+    int toDisk( short iNumber )     // save to disk as the i-th inode
+    {
+        return 0;
+        // Will be implemented later
+    }
+
+    int getLength()     //Will return file length
+    {
+        return length;
+    }
+
+    short getFlag()     //Will return flag of this Inode
+    {
+        return flag;
+    }
+
+
+
 
 
 }

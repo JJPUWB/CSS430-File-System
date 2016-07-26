@@ -1,13 +1,10 @@
-//FileTable.java
-//Team: Jacob J. Parkinson, Fuli Lan, Duke Dynda, Nicholas Koudsieh
-//Original version by Professor Michael Panitz
-//UWB Su16 CSS430
-//Heavy modifications have been made to this file
-
+/**
+ * Created by Michael on 7/23/2015.
+ */
 import java.util.Vector;
 
-public class FileTable {
-
+public class FileTable
+{
     private Vector table;    // the actual entity of this file table
     private Directory dir;        // the root directory
 

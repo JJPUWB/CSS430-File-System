@@ -1,48 +1,17 @@
-//Superblock.java
-
-class Superblock
+/**
+ * Created by Michael on 7/23/2015.
+ */
+public class Superblock
 {
-	public int totalBlocks;		//# disk blocks
-	public int totalInodes;		//# inodes
-	public int freeList;			//block # of the free list's head
+    public int totalBlocks; // the number of disk blocks
+    public int totalInodes; // the number of inodes
+    public int freeList;    // the block number of the free list's head
 
-	
-	public Superblock(int diskSize)
-	{
-		//Read first disc block 0 from disk
-		//Create Inode blocks
-		//Write Inode blocks to disk (into free blocks)
-		//Write free blocks to disk
-		//Write total blocks to disk
-	}
-	
-	public int enqueueBlock(int blockNumber)
-	{
-		//write to first free block
-		return 0;
-	}
-	
-	public int dequeueBlock()
-	{
-		//Delete last (not free) block
-		return 0;
-	}
+    public Superblock( int diskSize )
+    {
+        totalBlocks = diskSize / 512;       //Since each block has 512 bytes
+        freeList = 1;       //Upon construction block number of free list's head is 1, since superblock is 0
+        totalInodes = totalInodes * 16;      //Since each block can contain 16 Inodes
 
-	public int getIndexOfFreeBlock()
-	{
-		//return first free block number
-		return 0;
-	}
-
-	public int getNumDiskBlocks()
-	{
-		//return total disk blocks
-		return totalBlocks;
-	}
-
-	public int getNumInodes()
-	{
-		//return total inodes;
-		return totalInodes;
-	}
+    }
 }
