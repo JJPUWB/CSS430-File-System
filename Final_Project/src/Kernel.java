@@ -1,3 +1,9 @@
+//Kernel.java
+//Team: Jacob J. Parkinson, Fuli Lan, Duke Dynda, Nicholas Koudsieh
+//Original version by Professor Michael Panitz
+//UWB Su16 CSS430
+//No modifications have been made to this file
+
 import java.util.*;
 import java.lang.reflect.*;
 import java.io.*;

@@ -1,11 +1,8 @@
-/**
- * The FileTable holds the seek pointer, reference to inode, inode number,
- *     count to maintain threads, and access mode of each file.
- * The file system locates corresponding inode and records in each table entry.
- *
- * @author Duke Dynda
- * @version 07/25/2016
- */
+//FileTable.java
+//Team: Jacob J. Parkinson, Fuli Lan, Duke Dynda, Nicholas Koudsieh
+//Original version by Professor Michael Panitz
+//UWB Su16 CSS430
+//Heavy modifications have been made to this file
 
 import java.util.Vector;
 
@@ -20,7 +17,8 @@ public class FileTable {
     }                             // from the file system
 
     // major public methods
-    public synchronized FileTableEntry falloc( String filename, String mode ) {
+    public synchronized FileTableEntry falloc( String filename, String mode )
+{
         Inode inode = null;
         short iNumber = -1;
         while(true) {
@@ -70,6 +68,7 @@ public class FileTable {
             inode.flag = 2;
             break;
         }
+
         inode.count++;
         inode.toDisk(iNumber);
         FileTableEntry fte = new FileTableEntry(inode, iNumber, mode);

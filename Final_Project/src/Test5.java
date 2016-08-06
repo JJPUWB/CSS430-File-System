@@ -18,6 +18,7 @@ class Test5 extends Thread {
   }
 
   public void run( ) {
+	
     if ( test1( ) ) // format with specified # of files
       SysLib.cout("Correct behavior of format......................2\n");
     if ( test2( ) ) // open "css430" with "w+"
@@ -54,8 +55,27 @@ class Test5 extends Thread {
       SysLib.cout("Correct behavior of creating over 40 files ...0.5\n");
     if ( test18( ) ) // "uwb1" read/written among Test5 and Test6
       SysLib.cout("Correct behavior of two fds to the same file..0.5\n");
-  
-    SysLib.cout( "Test completed\n" );
+  /*
+	test1();
+	test2();
+	test3();
+	test4();
+	test5();
+	test6();
+	test7();
+	test8();
+	test9();
+	test10();
+	test11();
+	test12();
+	test13();
+	test14();
+	test15();
+	test16();
+	test17();
+	test18();
+*/    
+	SysLib.cout( "Test completed\n" );
     SysLib.exit( );
   }
 
