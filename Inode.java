@@ -26,7 +26,27 @@ public class Inode
 
     Inode( short iNumber )  // retrieving inode from disk
     {
-        // Will be implemented later
+        int numBlock = 1 + (iNumber / 16);
+        byte[] iBlock = new byte[512];
+        SysLib.rawread(numBlock, iBlock);
+        int offset = (iNumber % 16) * 32;
+
+        length = SysLib.bytes2int(iBlock, offset);
+        offset += 4;
+        count = SysLib.bytes2short(iBlock, offset);
+        offset += 2;
+        flag = SysLib.bytes2short(iBlock, offset);
+        offset += 2;
+
+        for (int i = 0; i < directSize; i++, offset += 2)
+        {
+            this.direct[i] = SysLib.bytes2short(iBlock, offset);
+        }
+
+        offset += 2;
+
+        this.indirect = SysLib.bytes2short(iBlock, offset);
+
 
 
     }
@@ -47,7 +67,20 @@ public class Inode
         return flag;
     }
 
+    short getIndexBlockNumber()
+    {
+        return 0;
+    }
 
+    boolean setIndexBlock(short indexBlockNumber)
+    {
+        return true;
+    }
+
+    short findTargetBlock(int offset)
+    {
+        return 0;
+    }
 
 
 
