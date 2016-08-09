@@ -26,8 +26,8 @@ public class Directory
         fileName = new char[maxInumber][maxChars];
         String root = "/";
 
-        size[0] = root.length();
-        root.getChars(0, size[0], fileName[0], 0);
+        //size[0] = root.length();
+        //root.getChars(0, size[0], fileName[0], 0);
     }
 
     public int bytesToDirectory(byte[] data)
