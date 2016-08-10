@@ -136,10 +136,31 @@ public class Inode
 		return toDisk(i);
 	}
 
-	//Requires implementation!
+	//Maps the offset of a file to a specific block
+    	//Layer Calls: calls downward to SysLib
 	int mapOffset(int offset)
 	{
-		return 0;
-	}
+	    //Based on the offset, the block index is either the indirect block, or one of 11 direct blocks
+	int blockIdx = offset / Disk.blockSize;
+
+        //Easiest case: offset maps to a direct block which is created
+        if (blockIdx < directSize)
+        {
+            return direct[blockIdx];
+        }
+        //Harder case: offset maps to indirect block
+        else if (blockIdx >= directSize && indirect >= 0)
+        {
+            byte[] tmpRead = new byte[Disk.blockSize];
+            SysLib.rawread(indirect, tmpRead);
+            short tmp = SysLib.bytes2short(tmpRead, 2*blockIdx - 11);
+            return tmp;
+        }
+        //Else: error!
+        else
+        {
+            return -1;
+        }
+
 
 }
