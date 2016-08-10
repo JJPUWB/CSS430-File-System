@@ -317,17 +317,12 @@ public class FileSystem
 			}
 		}
 
+
 		//The only time I need to explicitly modify the Inode. To preserve layered architecture, I use the
 		//inode.updateLength()
-		if (FTE.seekPtr == 0)
-		{
-			FTE.inode.length = buffer.length;
-		}
-		else if (FTE.seekPtr == FTE.inode.length)
-		{
-			FTE.inode.length += buffer.length;
-		}
+		FTE.inode.setLength(writeSize + FTE.inode.length);
 
+		//Return the updated iNode length because this is the original length + the written bytes
 		return FTE.inode.length;
 	}
 
@@ -372,5 +367,7 @@ public class FileSystem
 			return false;
 		}
 	}
+	
+	
 	
 }
