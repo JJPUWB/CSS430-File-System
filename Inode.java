@@ -162,5 +162,10 @@ public class Inode
             return -1;
         }
 
+	//Simple mutator to change length
+	void setLength(int newLength)
+    	{
+	    length = newLength;
+    	}
 
 }
