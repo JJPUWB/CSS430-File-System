@@ -158,7 +158,7 @@ public class FileSystem
 	//Layer calls: call up to kernel to use rawread
 	//			   call down to Inode.mapoffset(),
 	//			   		through a call sideways to FTE.inode
-	synchronized int read(FileTableEntry FTE, byte[] buffer)
+		synchronized int read(FileTableEntry FTE, byte[] buffer)
 	{
 		//As we are meant to code defensively, I should check that the mode is 'read'
 		if (FTE.mode != "r")
@@ -208,9 +208,11 @@ public class FileSystem
 			{
 				buffer[i] = tmpRead[i];
 			}
-			
+
+
 			//Block size = 512B (see disk.java)
 			sentinel += increment;
+			FTE.seekPtr += increment;	//Increment seek pointer
 		}
 		
 		//Return the # of bytes read
