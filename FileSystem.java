@@ -156,8 +156,8 @@ public class FileSystem
 	//FileSystem.Read() is used to get the byte at offset X. In this case,
 	//The INode for the file takes this offset and maps to a specific block which is then read.
 	//Layer calls: call up to kernel to use rawread
-	//			   call down to Inode.mapoffset()
-	//			   		through call sideways to FTE.inode
+	//			   call down to Inode.mapoffset(),
+	//			   		through a call sideways to FTE.inode
 	synchronized int read(FileTableEntry FTE, byte[] buffer)
 	{
 		//As we are meant to code defensively, I should check that the mode is 'read'
@@ -216,7 +216,13 @@ public class FileSystem
 		//Return the # of bytes read
 		return sentinel;
 	}
-	
+
+
+
+	//Write some byte[] buffer into a file represented by an FTE
+	//Layer calls: call up to kernel to use rawwrite
+	//			   call down to Inode.mapOffset and other methods in Inode,
+	//			   		through a call sideways to the FTE.inode
 	int write(FileTableEntry FTE, byte[] buffer)
 	{
 		//As we are meant to code defensively, I should check that the mode is 'write/+'
@@ -228,10 +234,101 @@ public class FileSystem
 		{
 			return -1;
 		}
-		
-		
-		
-		return 0;	
+
+		//The current block to be writing to. Depending on the size of the write, we may need more than 1.
+		//THIS IS NECESSARY to pass tests where a large amount of byte data is written! Note that this is the
+		//block's number, not the block index that we map to within the loop!!
+		int currentBlock = FTE.seekPtr;
+
+		//The size to write
+		int writeSize = buffer.length;
+
+
+		//Each loop iteration represents a write of a set 512B size or less
+		int LeftSentinel = 0;
+		while (LeftSentinel < writeSize)
+		{
+			//We're given an FTE who is all set up to be used to find any Inode data from it. This means that
+			//the seek pointer has already been sought to the block that has the file data to write into for iteration 0
+			//and for any subsequent iterations, the current block has been incremented and must be used to map the new
+			//offset
+			int blockIdx = FTE.inode.mapOffset(currentBlock);
+
+			//If we need to, let's go ahead and get a new free block for iteration 0.
+			if (blockIdx < 0 )
+			{
+				blockIdx = superblock.getFreeBlock();
+			}
+
+			//Within the loop, one last task to do is to increment by the amount read which is typically 512B
+			//Increment = 512B by default; but can be less
+			int increment = 512;
+
+			//Increment the sentinel and the current block if needed
+			//Case: there's less than 512B to write, so I've got to write a partial block
+			if ((LeftSentinel + increment) > writeSize)
+			{
+				//Temporary write array used once per loop
+				byte[] tmpWrite = new byte[increment];
+				byte[] tmpWrite2 = new byte[increment];
+				//The read statement seems out of place in the write method, but I actually need it to 'fetch' me
+				//the block data into tmpWrite - read an entire block as usual, but we'll overwrite part of it
+				SysLib.rawread(blockIdx, tmpWrite);
+
+				for (int i = 0; i < writeSize - LeftSentinel; i++)
+				{
+					tmpWrite[i] = buffer[LeftSentinel + i];
+				}
+
+
+				for (int i = 0; i < writeSize - LeftSentinel; i++)
+				{
+					tmpWrite2[i] = tmpWrite[i];
+				}
+
+				SysLib.rawwrite(blockIdx, tmpWrite2);
+
+
+				LeftSentinel = writeSize;
+			}
+			//Case: there's more than 512B to write, so just write an entire block
+			else
+			{
+				//Temporary write array used once per loop
+				byte[] tmpWrite = new byte[increment];
+				//The read statement seems out of place in the write method, but I actually need it to 'fetch' me
+				//the block data into tmpWrite
+				SysLib.rawread(blockIdx, tmpWrite);
+
+				//Write the 512 bytes from buffer into a tmpWrite array so that I can actually use rawwrite without
+				//screwing up and trying to write more than 512B into a 512B block
+
+				for (int i = 0; i < increment; i++)
+				{
+					tmpWrite[i] = buffer[LeftSentinel + i];
+				}
+
+				//The actual entire goal of the function is acocmplished!!!
+				SysLib.rawwrite(blockIdx, tmpWrite);
+
+				//Increment by x Bytes
+				LeftSentinel += increment;
+				currentBlock += increment;
+			}
+		}
+
+		//The only time I need to explicitly modify the Inode. To preserve layered architecture, I use the
+		//inode.updateLength()
+		if (FTE.seekPtr == 0)
+		{
+			FTE.inode.length = buffer.length;
+		}
+		else if (FTE.seekPtr == FTE.inode.length)
+		{
+			FTE.inode.length += buffer.length;
+		}
+
+		return FTE.inode.length;
 	}
 
 	//
