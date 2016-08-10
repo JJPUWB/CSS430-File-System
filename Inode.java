@@ -103,8 +103,8 @@ public class Inode
 
 		//Convert the length of the file into bytes and place it in 
 		SysLib.int2bytes(length, tmp, sentinel);
-		SysLib.int2bytes(count, tmp, sentinel + 4);
-		SysLib.int2bytes(flag, tmp, sentinel + 6);
+		SysLib.short2bytes(count, tmp, sentinel + 4);
+		SysLib.short2bytes(flag, tmp, sentinel + 6);
 
 		//Increment the sentinel 4 for the length, 2 for the count, 2 for the flag
 		sentinel += 8;
