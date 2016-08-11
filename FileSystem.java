@@ -31,6 +31,7 @@
 //		use Directory.java to map the file name to the Inode in between loading the Inode from the
 //		disk into memory and creating an FTE
 //
+//FINAL Version
 
 public class FileSystem
 {
@@ -148,13 +149,13 @@ public class FileSystem
 	//Just return the size with an error check
 	int fsize(FileTableEntry fte)
 	{
-		if (fte != null)
+		if (fte != null)		//Check if the file table entry object is not null
 		{
 			return fte.inode.length;
 		}
 		else
 		{
-			return -1;
+			return -1;		//otherwise, error
 		}
 	}
 

@@ -4,6 +4,7 @@
 
 //The Inode keeps track of the blocks that are in the file and maps offsets to blocks
 //Primary function is to map offsets to blocks in the blockmap which the Inode maintains
+//FINAL Version
 public class Inode
 {
 	//Class members
@@ -23,6 +24,7 @@ public class Inode
 		count = 0;
 		flag = 1;
 
+		//Instantiate all direct pointers and indirect pointer to -1
 		for (int i = 0; i < directSize; i++)
 		{
 			direct[i] = -1;

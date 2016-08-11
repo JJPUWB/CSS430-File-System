@@ -3,7 +3,7 @@
 //Original version by Professor Michael Panitz
 //UWB Su16 CSS430
 //No modifications have been made to this file
-
+//FINAL Version
 
 public class FileTableEntry {  // Each table entry should have
     public int seekPtr;        //    a file seek pointer

@@ -3,7 +3,7 @@
 //Original version by Professor Michael Panitz
 //UWB Su16 CSS430
 //Heavy modifications have been made to this file
-
+//FINAL Version
 import java.util.Vector;
 
 public class FileTable
@@ -20,8 +20,14 @@ public class FileTable
     // major public methods
     public synchronized FileTableEntry falloc( String filename, String mode )
     {
-        Inode inode = null;
-        short iNumber = -1;
+        // allocate a new file (structure) table entry for this file name
+        // allocate/retrieve and register the corresponding inode using dir
+        // increment this inode's count
+        // immediately write back this inode to the disk
+        // return a reference to this file (structure) table entry
+
+        Inode inode = null;     //Declare new Inode object
+        short iNumber = -1;     //Corresponding iNumber
         while(true)
         {
             if(filename.equals("/"))
@@ -30,7 +36,7 @@ public class FileTable
             }
             else
             {
-                iNumber = dir.namei(filename);  // not in root dir
+                iNumber = dir.namei(filename);  // not in root dir, find the corresponding inumber
             }
 
             if(iNumber >= 0)
@@ -43,15 +49,15 @@ public class FileTable
                     {    // not unused nor used
                         try
                         {
-                            wait();
+                            wait();     //Have this thread wait
                         }
-                        catch (InterruptedException var7)
+                        catch (InterruptedException e)
                         {
 
                         }
                         continue;
                     }
-                    inode.flag = 1;
+                    inode.flag = 1;     //set state to used
                     break;
                 }
 
@@ -63,9 +69,9 @@ public class FileTable
                     }
                     try
                     {
-                        this.wait();
+                        this.wait();        //Have this thread wait
                     }
-                    catch (InterruptedException var6)
+                    catch (InterruptedException e)
                     {
 
                     }
@@ -80,22 +86,18 @@ public class FileTable
                 return null;
             }
 
-            iNumber = dir.ialloc(filename);
-            inode = new Inode();
-            inode.flag = 2;
+            iNumber = dir.ialloc(filename);     //allocate a inumber for this file
+            inode = new Inode();        //instantiate a new Inode
+            inode.flag = 2;     //set the flag to 2
             break;
         }
 
-        inode.count++;
-        inode.toDisk(iNumber);
+        inode.count++;      //Increment the count
+        inode.toDisk(iNumber);      //Write the Inode to disk
         FileTableEntry fte = new FileTableEntry(inode, iNumber, mode);
-        table.addElement(fte);
+        table.addElement(fte);      //Add the file table entry to the vector
         return fte;
-        // allocate a new file (structure) table entry for this file name
-        // allocate/retrieve and register the corresponding inode using dir
-        // increment this inode's count
-        // immediately write back this inode to the disk
-        // return a reference to this file (structure) table entry
+
     }
 
     // free memory and store on disk instead
