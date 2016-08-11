@@ -226,7 +226,7 @@ public class FileSystem
 	//			   call down to Inode.mapOffset and other methods in Inode such as the setupInodeBlock & addIndex
 	//			   		through a call sideways to the FTE.inode
 	//			   call to superblock to get a new free block
-	int write(FileTableEntry FTE, byte[] buffer)
+	synchronized int write(FileTableEntry FTE, byte[] buffer)
 	{
 		//Write works for a = append, w = write, w+ = write+, but not r = read
 		if(FTE.mode != "w" && FTE.mode != "w+" && FTE.mode != "a")
@@ -242,8 +242,8 @@ public class FileSystem
 		int WriteSentinel = buffer.length;
 
 		//We need to synchronize a number of our modification methods in order to pass the multiple access test
-		synchronized(FTE)
-		{
+
+
 			//Each loop iteration represents a write of a set 512B size or less; the entire loop should be thought of
 			//as a sort of buffer where two sentinels stand at both ends, and the LeftSentinel marches closer to the
 			//WriteSentinel
@@ -301,7 +301,7 @@ public class FileSystem
 			}
 			//Return the FTE.inode.length because it's equivalent by now to the seekPtr + the total increments
 			return FTE.inode.length;
-		}
+		
 
 	}
 
