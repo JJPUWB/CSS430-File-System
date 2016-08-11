@@ -164,65 +164,64 @@ public class FileSystem
 	//Layer calls: call up to kernel to use rawread
 	//			   call down to Inode.mapoffset(),
 	//			   		through a call sideways to FTE.inode
-		synchronized int read(FileTableEntry FTE, byte[] buffer)
+	synchronized int read(FileTableEntry FTE, byte[] buffer)
 	{
-		//As we are meant to code defensively, I should check that the mode is 'read'
-		if (FTE.mode != "r")
+		//Read works for r = read, w+ = write+, but not w = write, a = append
+		if(FTE.mode != "r" && FTE.mode != "w+")
 		{
 			return -1;
 		}
-		if (FTE == null || buffer == null)
+		//Null checks
+		if (FTE == null || FTE.inode.length < 0 || buffer == null || buffer.length < 1)
 		{
 			return -1;
 		}
 
-		//Each loop iteration represents 512B being read into the data buffer
-		int sentinel = 0;
-		while (sentinel < buffer.length)
+		//Each loop iteration represents 512B being read into the data buffer. Think of the algorithm as a buffer
+		//which has two sentinels standing on either end, with the one on the left marching toward the one on the
+		//right until they are as equals
+		int LeftSentinel = 0;
+		int ReadSentinel = buffer.length;
+		while(LeftSentinel < ReadSentinel)
 		{
-			//Get Inode Block # - the offset is given by the seek pointer in the FTE
-			int blockIndex = FTE.inode.mapOffset(FTE.seekPtr);
-			
-			//Error occurs
-			if (blockIndex <= 0)
+			//Firstly, map the offset to a block - the offset is given by the seek pointer in the FTE
+			int blockIdx = FTE.inode.mapOffset(FTE.seekPtr);
+
+			//Rather than getting a new free block & setting up the Inode (as in write() ), we just return the current
+			//bytesRead amount
+			if(blockIdx < 0)
 			{
-				return -1;
-			}
-			
-			//Temporary array to read 512B from the file
-			byte[] tmpRead;
-			
-			//Default increment value of the sentinel
-			int increment = 512;
-			
-			//Before I read, make sure I'm not going past the eof character
-			if ((buffer.length - sentinel) < 512)
-			{
-				increment = buffer.length - sentinel;
-				tmpRead = new byte[buffer.length - sentinel];
-			}
-			else
-			{
-				tmpRead = new byte[512];
+				return LeftSentinel;
 			}
 
-			//Actual read command
-			SysLib.rawread(blockIndex, tmpRead);
-			
-			//Move the array of read byte data into buffer
-			for (int i = sentinel; i < (sentinel + increment); i++)
+			//Within the loop, one important task to do is to increment by the amount read which is typically 512B
+			//Increment = 512B by default; but can be less (see disk.java). The min statement makes sure that I'm not
+			//going past the eof character / out of array bounds
+			int increment = 512 - (FTE.seekPtr % 512);
+			increment = Math.min(increment, (ReadSentinel - LeftSentinel));
+
+			//Temporary write array used once per loop
+			byte[] tmpRead = new byte[512];
+
+			//The read statement seems out of place in the write method, but I actually need it to 'fetch' me
+			//the block data into tmpWrite
+			SysLib.rawread(blockIdx, tmpRead);
+
+			//Write from the tmpRead byte[] at blockOffset, into the buffer beginning at LeftSentinel, for the increment
+			for (int i = 0; i < increment; i++)
 			{
-				buffer[i] = tmpRead[i];
+				buffer[LeftSentinel + i] = tmpRead[(FTE.seekPtr % Disk.blockSize) + i];
 			}
 
+			//LeftSentinel marches closer to the WriteSentinel
+			LeftSentinel += increment;
 
-			//Block size = 512B (see disk.java)
-			sentinel += increment;
-			FTE.seekPtr += increment;	//Increment seek pointer
+			//Regardless, increment the seekPtr
+			FTE.seekPtr += increment;
 		}
-		
+
 		//Return the # of bytes read
-		return sentinel;
+		return LeftSentinel;
 	}
 
 
