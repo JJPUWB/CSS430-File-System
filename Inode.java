@@ -136,31 +136,109 @@ public class Inode
 		return toDisk(i);
 	}
 
+	//Add a new index to be used for Inodeblock creation
+	//Layer calls: communicates with SysLib
+	boolean addIndex(int newIdx)
+	{
+		for(int i = 0; i < directSize; i++)
+		{
+			//If a direct index is unassigned, we can use it and shouldn't add an index
+			if(direct[i] == -1)
+			{
+				return false;
+			}
+		}
+
+		//If the directs are all taken but the indirect isn't taken, we can use that and shouldn't add an index
+		if(indirect != -1)
+		{
+			return false;
+		}
+		//Otherwise, we actually add the index
+		else
+		{
+			//Temporary byte[] to write to a block as a new index
+			byte[] tmpWrite = new byte[512];
+
+			//Convert short to bytes and fill tmpWrite
+			for(int i = 0; i < 256; i++)
+			{
+				SysLib.short2bytes((short)-1, tmpWrite, (i * 2));
+			}
+			//Update with added index
+			SysLib.rawwrite((short)newIdx, tmpWrite);
+			//Assign indirect block to new Idx after 'writing' to it
+			indirect = (short)newIdx;
+
+			//Return success
+			return true;
+		}
+	}
+
+	//Setup an Inode's block, given an offset and block#
+	//Layer calls: communicates with SysLib
+	boolean setupInodeBlock(int offset, int block)
+	{
+		//The block index is found by the offset over the Disk.blockSize, as explained in the videos
+		int blockIdx = offset / Disk.blockSize;
+
+		//Is it a direct block?
+		if(blockIdx < 11)
+		{
+			direct[blockIdx] = (short)block;
+			return true;
+		}
+		//Is it an error?
+		else if(indirect < 0)
+		{
+			return false;
+		}
+		//Is it an indirect block?
+		else
+		{
+			//Temporary byte[] to read the indirect block
+			byte[] tmpRead = new byte[Disk.blockSize];
+			SysLib.rawread(indirect, tmpRead);
+
+			//This modifies the short value of the block and puts it into the tmpRead byte[] at the proper position
+			//the position is given by the blockIdx (offset / Disk.blockSize) - the direct Inodes (*2 because short
+			//= 2B)
+			SysLib.short2bytes((short)block, tmpRead, (blockIdx - directSize) * 2);
+
+			//Write the tmpRead[] back to the indirect
+			SysLib.rawwrite(indirect, tmpRead);
+			return true;
+		}
+	}
+
 	//Maps the offset of a file to a specific block
-    	//Layer Calls: calls downward to SysLib
+	//Layer Calls: calls downward to SysLib
 	int mapOffset(int offset)
 	{
-	    //Based on the offset, the block index is either the indirect block, or one of 11 direct blocks
-	int blockIdx = offset / Disk.blockSize;
+		//Based on the offset, the block index is either the indirect block, or one of 11 direct blocks
+		int blockIdx = offset / Disk.blockSize;
 
-        //Easiest case: offset maps to a direct block which is created
-        if (blockIdx < directSize)
-        {
-            return direct[blockIdx];
-        }
-        //Harder case: offset maps to indirect block
-        else if (blockIdx >= directSize && indirect >= 0)
-        {
-            byte[] tmpRead = new byte[Disk.blockSize];
-            SysLib.rawread(indirect, tmpRead);
-            short tmp = SysLib.bytes2short(tmpRead, 2*blockIdx - 11);
-            return tmp;
-        }
-        //Else: error!
-        else
-        {
-            return -1;
-        }
+		//Easiest case: offset maps to a direct block which is created
+		if(blockIdx < directSize)
+		{
+			return direct[blockIdx];
+		}
+		//error
+		else if(indirect < 0)
+		{
+			return -1;
+		}
+		//Harder case: offset maps to indirect block
+		else
+		{
+			byte[] tmpRead = new byte[Disk.blockSize];
+			SysLib.rawread(indirect, tmpRead);
+
+			//Remember that a short = 2 bytes
+			int ret = SysLib.bytes2short(tmpRead, (blockIdx - directSize) * 2);
+			return ret;
+		}
+	}
 
 	//Simple mutator to change length
 	void setLength(int newLength)
