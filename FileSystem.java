@@ -116,7 +116,14 @@ public class FileSystem
 		//Take fileName and mode and use the FileTable's interface with the directory to
 		//get me an FTE
 		FileTableEntry FTE = filetable.falloc(fileName, mode);
-		
+
+		if(mode.equals("w")) {
+			boolean deallocSuccess = deallocAllBlocks(FTE);
+			if(!deallocSuccess) {
+				return null;
+			}
+		}
+
 		//Check if the FileTable was able to use the Directory to map the fileName to an INode
 		if (FTE == null)
 		{
@@ -125,7 +132,6 @@ public class FileSystem
 		//If it was, return the FileTableEntry
 		else
 		{
-			
 			return FTE;
 		}
 		
@@ -223,13 +229,12 @@ public class FileSystem
 
 	//Write some byte[] buffer into a file represented by an FTE
 	//Layer calls: call up to kernel to use rawwrite
-	//			   call down to Inode.mapOffset and other methods in Inode such as the setupInodeBlock & addIndex
+	//			   call down to Inode.mapOffset and other methods in Inode,
 	//			   		through a call sideways to the FTE.inode
-	//			   call to superblock to get a new free block
-	synchronized int write(FileTableEntry FTE, byte[] buffer)
+	int write(FileTableEntry FTE, byte[] buffer)
 	{
-		//Write works for a = append, w = write, w+ = write+, but not r = read
-		if(FTE.mode != "w" && FTE.mode != "w+" && FTE.mode != "a")
+		//As we are meant to code defensively, I should check that the mode is 'write/+'
+		if (FTE.mode != "w" && FTE.mode != "w+")
 		{
 			return -1;
 		}
@@ -238,147 +243,125 @@ public class FileSystem
 			return -1;
 		}
 
+		//The current block to be writing to. Depending on the size of the write, we may need more than 1.
+		//THIS IS NECESSARY to pass tests where a large amount of byte data is written! Note that this is the
+		//block's number, not the block index that we map to within the loop!!
+		int currentBlock = FTE.seekPtr;
+
 		//The size to write
-		int WriteSentinel = buffer.length;
-
-		//We need to synchronize a number of our modification methods in order to pass the multiple access test
+		int writeSize = buffer.length;
 
 
-			//Each loop iteration represents a write of a set 512B size or less; the entire loop should be thought of
-			//as a sort of buffer where two sentinels stand at both ends, and the LeftSentinel marches closer to the
-			//WriteSentinel
-			int LeftSentinel = 0;
-			while(LeftSentinel < WriteSentinel)
+		//Each loop iteration represents a write of a set 512B size or less
+		int LeftSentinel = 0;
+		while (LeftSentinel < writeSize)
+		{
+			//We're given an FTE who is all set up to be used to find any Inode data from it. This means that
+			//the seek pointer has already been sought to the block that has the file data to write into for iteration 0
+			//and for any subsequent iterations, the current block has been incremented and must be used to map the new
+			//offset
+			int blockIdx = FTE.inode.mapOffset(currentBlock);
+
+			//If we need to, let's go ahead and get a new free block for iteration 0.
+			if (blockIdx < 0 )
 			{
-				int blockIdx = FTE.inode.mapOffset(FTE.seekPtr);
+				blockIdx = superblock.getFreeBlock();
+			}
 
-				//If we need to, let's go ahead and get a new free block & setup the Inode
-				//Turns out, this is a lot more difficult than expected.
-				if(blockIdx < 0)
+			//Within the loop, one last task to do is to increment by the amount read which is typically 512B
+			//Increment = 512B by default; but can be less
+			int increment = 512;
+
+			//Increment the sentinel and the current block if needed
+			//Case: there's less than 512B to write, so I've got to write a partial block
+			if ((LeftSentinel + increment) > writeSize)
+			{
+				//Temporary write array used once per loop
+				byte[] tmpWrite = new byte[increment];
+				byte[] tmpWrite2 = new byte[increment];
+				//The read statement seems out of place in the write method, but I actually need it to 'fetch' me
+				//the block data into tmpWrite - read an entire block as usual, but we'll overwrite part of it
+				SysLib.rawread(blockIdx, tmpWrite);
+
+				for (int i = 0; i < writeSize - LeftSentinel; i++)
 				{
-					//It's simple enough to get the free block, given the layered call implementation.
-					blockIdx = superblock.getFreeBlock();
-					//Add an index in the Inode (if there's an unused index, then it will not add anything)
-					FTE.inode.addIndex(superblock.getFreeBlock());
-					//Utilize the recently added index (or an open one) for the new Inode block
-					FTE.inode.setupInodeBlock(FTE.seekPtr, blockIdx);
+					tmpWrite[i] = buffer[LeftSentinel + i];
 				}
 
-				//Within the loop, one important task to do is to increment by the amount read which is typically 512B
-				//Increment = 512B by default; but can be less
-				int increment = 512 - (FTE.seekPtr % 512);
-				increment = Math.min(increment, (WriteSentinel - LeftSentinel));
 
+				for (int i = 0; i < writeSize - LeftSentinel; i++)
+				{
+					tmpWrite2[i] = tmpWrite[i];
+				}
+
+				SysLib.rawwrite(blockIdx, tmpWrite2);
+
+
+				LeftSentinel = writeSize;
+			}
+			//Case: there's more than 512B to write, so just write an entire block
+			else
+			{
 				//Temporary write array used once per loop
-				byte[] tmpWrite = new byte[512];
-
+				byte[] tmpWrite = new byte[increment];
 				//The read statement seems out of place in the write method, but I actually need it to 'fetch' me
 				//the block data into tmpWrite
 				SysLib.rawread(blockIdx, tmpWrite);
 
-				//Copy the contents of buffer, starting at the LeftSentinel, into tmpWrite, starting at the
-				//current offset, over the length of the increment.
-				//This needs to use 512 bytes from buffer into a tmpWrite array so that I can actually use rawwrite without
+				//Write the 512 bytes from buffer into a tmpWrite array so that I can actually use rawwrite without
 				//screwing up and trying to write more than 512B into a 512B block
-				for (int i = 0, j = (FTE.seekPtr % 512); i < increment; i++, j++)
+
+				for (int i = 0; i < increment; i++)
 				{
-					tmpWrite[j] = buffer[LeftSentinel + i];
+					tmpWrite[i] = buffer[LeftSentinel + i];
 				}
 
 				//The actual entire goal of the function is acocmplished!!!
 				SysLib.rawwrite(blockIdx, tmpWrite);
 
-				//LeftSentinel marches closer to the WriteSentinel
+				//Increment by x Bytes
 				LeftSentinel += increment;
-
-				//I can also increment the seek pointer in the loop like this
-				if((FTE.seekPtr + increment) > FTE.inode.length)
-				{
-					FTE.inode.setLength(FTE.seekPtr + increment);
-				}
-				//Regardless, increment the seekPtr
-				FTE.seekPtr += increment;
+				currentBlock += increment;
 			}
-			//Return the FTE.inode.length because it's equivalent by now to the seekPtr + the total increments
-			return FTE.inode.length;
-		
+		}
 
+
+		//The only time I need to explicitly modify the Inode. To preserve layered architecture, I use the
+		//inode.updateLength()
+		FTE.inode.setLength(writeSize + FTE.inode.length);
+
+		//Return the updated iNode length because this is the original length + the written bytes
+		return FTE.inode.length;
 	}
 
 	//
 	private boolean deallocAllBlocks(FileTableEntry fte)
 	{
-		return false;
+		if(fte != null) {
+			fte.seekPtr = 0;
+			for(int i = 0; i < fte.inode.direct.length; i++) {
+				superblock.returnBlock(fte.inode.direct[i]);
+			}
+			fte.inode.length = 0;
+			fte.inode.count = 0;
+			fte.inode.flag = 0;
+			for(int i = 0; i < 11; i++) {
+				fte.inode.direct[i] = 0;
+			}
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	private final int SEEK_SET = 0;
 	private final int SEEK_CUR = 1;
 	private final int SEEK_END = 2;
 	
+	//To be implemented
 	int seek(FileTableEntry fte, int offset, int whence)
 	{
-		synchronized (fte)
-		{
-			if (fte == null)
-			{
-				return -1;		//error
-			}
-
-			int lengthOfFile = fte.inode.length;	//Obtain the length of the file
-
-			if (whence == SEEK_SET)		//whence = 0
-			{
-				if (offset <= 0)
-				{
-					fte.seekPtr = 0;
-				}
-				else if (offset >= lengthOfFile)
-				{
-					fte.seekPtr = lengthOfFile;
-				}
-				else
-				{
-					fte.seekPtr = offset;
-				}
-				return fte.seekPtr;
-			}
-			else if (whence == SEEK_CUR)		//whence = 1
-			{
-				fte.seekPtr += offset;
-				if (fte.seekPtr <= 0)		//If the seek pointer is less or equal than zero, set to zero
-				{
-					fte.seekPtr = 0;
-				}
-
-				if (fte.seekPtr >= lengthOfFile)		//if the seek pointer is greater or equal to lengthOfFile, set to length of file
-				{
-					fte.seekPtr = lengthOfFile;
-				}
-
-				return fte.seekPtr;
-			}
-			else if (whence == SEEK_END)		//whence = 2
-			{
-				fte.seekPtr = lengthOfFile + offset;
-				if (fte.seekPtr <= 0)		//If the seek pointer is less or equal than zero, set to zero
-				{
-					fte.seekPtr = 0;
-				}
-
-				if (fte.seekPtr >= lengthOfFile)		//If the seek pointer is greater or equal to the length of file, then set to length of file
-				{
-					fte.seekPtr = lengthOfFile;
-				}
-
-				return fte.seekPtr;
-			}
-			else
-			{
-				return -1;		//Error, whence is not equal to 0, 1, or 2
-			}
-		}
-
-
+		return 0;
 	}
 
 	//To be implemented
@@ -406,7 +389,4 @@ public class FileSystem
 			return false;
 		}
 	}
-	
-	
-	
 }
