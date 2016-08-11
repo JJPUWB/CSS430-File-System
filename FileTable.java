@@ -6,36 +6,47 @@
 
 import java.util.Vector;
 
-public class FileTable {
-
+public class FileTable
+{
     private Vector table;    // the actual entity of this file table
     private Directory dir;        // the root directory
 
-    public FileTable( Directory directory ) { // constructor
+    public FileTable( Directory directory )
+    { // constructor
         table = new Vector( );     // instantiate a file (structure) table
         dir = directory;           // receive a reference to the Director
     }                             // from the file system
 
     // major public methods
     public synchronized FileTableEntry falloc( String filename, String mode )
-{
+    {
         Inode inode = null;
         short iNumber = -1;
-        while(true) {
-            if(filename.equals("/")) {  // in root dir so stay at 0
+        while(true)
+        {
+            if(filename.equals("/"))
+            {  // in root dir so stay at 0
                 iNumber = 0;
-            } else {
+            }
+            else
+            {
                 iNumber = dir.namei(filename);  // not in root dir
             }
 
-            if(iNumber >= 0) {  // there has to be a file
+            if(iNumber >= 0)
+            {  // there has to be a file
                 // setup to load inode from disk to memory
                 inode = new Inode(iNumber);
-                if(mode.equals("r")) {
-                    if(inode.flag != 0 && inode.flag != 1) {    // not unused nor used
-                        try {
+                if(mode.equals("r"))
+                {
+                    if(inode.flag != 0 && inode.flag != 1)
+                    {    // not unused nor used
+                        try
+                        {
                             wait();
-                        } catch (InterruptedException var7) {
+                        }
+                        catch (InterruptedException var7)
+                        {
 
                         }
                         continue;
@@ -44,13 +55,18 @@ public class FileTable {
                     break;
                 }
 
-                if(inode.flag != 0 && inode.flag != 3) {
-                    if(inode.flag == 1 || inode.flag == 2) {
+                if(inode.flag != 0 && inode.flag != 3)
+                {
+                    if(inode.flag == 1 || inode.flag == 2)
+                    {
                         inode.flag = (short)(inode.flag + 3);
                     }
-                    try {
+                    try
+                    {
                         this.wait();
-                    } catch (InterruptedException var6) {
+                    }
+                    catch (InterruptedException var6)
+                    {
 
                     }
                     continue;
@@ -59,7 +75,8 @@ public class FileTable {
                 break;
             }
 
-            if(mode.equals("r")) {
+            if(mode.equals("r"))
+            {
                 return null;
             }
 
@@ -123,7 +140,8 @@ public class FileTable {
         }
     }
 
-    public synchronized boolean fempty( ) {
-        return table.isEmpty( );  // return if table is empty
-    }                            // should be called before starting a format
+
+    public synchronized boolean fempty() {
+        return table.isEmpty();
+    }
 }

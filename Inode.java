@@ -4,10 +4,9 @@
 
 public class Inode
 {
-
 	private final static int iNodeSize = 32;		//fix to 32B
 	private final static int directSize = 11;		//# direct ptrs
-	
+
 	public int length;					//file size in B
 	public short count;					//# file-table entries pointing to this
 	public short flag;					//0 = unused, 1 = used, ...
@@ -20,43 +19,12 @@ public class Inode
 		length = 0;
 		count = 0;
 		flag = 1;
-		
+
 		for (int i = 0; i < directSize; i++)
 		{
 			direct[i] = -1;
 		}
 		indirect = -1;
-	}
-
-	//Helper constructor
-	//Layer calls: relies on toDisk for outgoing call
-	//		 takes incoming call from Superblock.format() for test1
-	Inode(int Len, int Direct, boolean saveToDisk)
-	{
-		//Assign the length of the Inode
-		length = Len;
-
-		//Cast convert. Takes an int param for interfacing convenience.
-		direct[0] = (short)Direct;
-		
-		flag = 1;
-
-		for (int i = 1; i < directSize; i++)
-		{
-			direct[i] = -1;
-		}
-		indirect = -1;
-
-		//If provided a true boolean value as param3, pass control to toDisk()
-		if (saveToDisk)
-		{
-			toDisk((short)0);
-			return;
-		}
-		else
-		{
-			return;
-		}
 	}
 
 	//retrieving the inode from the disk
@@ -92,6 +60,37 @@ public class Inode
 		indirect = SysLib.bytes2short(tmpRead, offset);
 	}
 
+	//Helper constructor
+	//Layer calls: relies on toDisk for outgoing call
+	//		 takes incoming call from Superblock.format() for test1
+	Inode(int Len, int Direct, boolean saveToDisk)
+	{
+		//Assign the length of the Inode
+		length = Len;
+
+		//Cast convert. Takes an int param for interfacing convenience.
+		direct[0] = (short)Direct;
+
+		flag = 1;
+
+		for (int i = 1; i < directSize; i++)
+		{
+			direct[i] = -1;
+		}
+		indirect = -1;
+
+		//If provided a true boolean value as param3, pass control to toDisk()
+		if (saveToDisk)
+		{
+			toDisk((short)0);
+			return;
+		}
+		else
+		{
+			return;
+		}
+	}
+
 	//save to the disk as the i-th node
 	//Layer calls: Calls downward to SysLib (which further calls to the disk)
 	int toDisk (short iNumber)
@@ -104,21 +103,21 @@ public class Inode
 
 		//Track toward the end of the Inode (file)
 		int sentinel = (iNumber % 16) * 32;
-		
+
 		byte[] tmp = new byte[Disk.blockSize];
-		
+
 		//Read from the block
 		SysLib.rawread(blockNum, tmp);
 
-		//Convert the length of the file into bytes and place it in 
+		//Convert the length of the file into bytes and place it in
 		SysLib.int2bytes(length, tmp, sentinel);
-		SysLib.short2bytes(count, tmp, sentinel + 4);
-		SysLib.short2bytes(flag, tmp, sentinel + 6);
+		SysLib.int2bytes(count, tmp, sentinel + 4);
+		SysLib.int2bytes(flag, tmp, sentinel + 6);
 
 		//Increment the sentinel 4 for the length, 2 for the count, 2 for the flag
 		sentinel += 8;
 
-		//Convert the 11 direct Inodes into bytes. 
+		//Convert the 11 direct Inodes into bytes.
 		for (int i = 0; i < directSize; i++)
 		{
 			SysLib.short2bytes(direct[i], tmp, sentinel);
@@ -127,7 +126,7 @@ public class Inode
 			//This is also the reason for short2bytes being used
 			sentinel +=2;
 		}
-		
+
 		//Convert the single indirect Inode into bytes
 		SysLib.short2bytes(indirect, tmp, sentinel);
 
@@ -144,7 +143,7 @@ public class Inode
 		short i = (short)iNumber;
 		return toDisk(i);
 	}
-
+	
 	//Add a new index to be used for Inodeblock creation
 	//Layer calls: communicates with SysLib
 	boolean addIndex(int newIdx)
@@ -249,10 +248,24 @@ public class Inode
 		}
 	}
 
+	//Simple accessor method for giving the indirect block
+	int getIndirect()
+	{
+		return indirect;
+	}
 	//Simple mutator to change length
 	void setLength(int newLength)
-    	{
-	    length = newLength;
-    	}
-
+	{
+		length = newLength;
+	}
+	//Simple mutator to change count
+	void setCount(int newCount)
+	{
+		count = (short)newCount;
+	}
+	//Simple mutator to change flag
+	void setFlag(int newFlag)
+	{
+		flag = (short)newFlag;
+	}
 }
