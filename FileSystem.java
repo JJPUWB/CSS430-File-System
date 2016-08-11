@@ -116,14 +116,7 @@ public class FileSystem
 		//Take fileName and mode and use the FileTable's interface with the directory to
 		//get me an FTE
 		FileTableEntry FTE = filetable.falloc(fileName, mode);
-
-		if(mode.equals("w")) {
-			boolean deallocSuccess = deallocAllBlocks(FTE);
-			if(!deallocSuccess) {
-				return null;
-			}
-		}
-
+		
 		//Check if the FileTable was able to use the Directory to map the fileName to an INode
 		if (FTE == null)
 		{
@@ -132,8 +125,10 @@ public class FileSystem
 		//If it was, return the FileTableEntry
 		else
 		{
+			
 			return FTE;
 		}
+		
 	}
 
 	//Just close the filetableEntry that I'm given.
@@ -313,31 +308,77 @@ public class FileSystem
 	//
 	private boolean deallocAllBlocks(FileTableEntry fte)
 	{
-		if(fte != null) {
-			fte.seekPtr = 0;
-			for(int i = 0; i < fte.inode.direct.length; i++) {
-				superblock.returnBlock(fte.inode.direct[i]);
-			}
-			fte.inode.length = 0;
-			fte.inode.count = 0;
-			fte.inode.flag = 0;
-			for(int i = 0; i < 11; i++) {
-				fte.inode.direct[i] = 0;
-			}
-			return true;
-		} else {
-			return false;
-		}
+		return false;
 	}
 
 	private final int SEEK_SET = 0;
 	private final int SEEK_CUR = 1;
 	private final int SEEK_END = 2;
 	
-	//To be implemented
 	int seek(FileTableEntry fte, int offset, int whence)
 	{
-		return 0;
+		synchronized (fte)
+		{
+			if (fte == null)
+			{
+				return -1;		//error
+			}
+
+			int lengthOfFile = fte.inode.length;	//Obtain the length of the file
+
+			if (whence == SEEK_SET)		//whence = 0
+			{
+				if (offset <= 0)
+				{
+					fte.seekPtr = 0;
+				}
+				else if (offset >= lengthOfFile)
+				{
+					fte.seekPtr = lengthOfFile;
+				}
+				else
+				{
+					fte.seekPtr = offset;
+				}
+				return fte.seekPtr;
+			}
+			else if (whence == SEEK_CUR)		//whence = 1
+			{
+				fte.seekPtr += offset;
+				if (fte.seekPtr <= 0)		//If the seek pointer is less or equal than zero, set to zero
+				{
+					fte.seekPtr = 0;
+				}
+
+				if (fte.seekPtr >= lengthOfFile)		//if the seek pointer is greater or equal to lengthOfFile, set to length of file
+				{
+					fte.seekPtr = lengthOfFile;
+				}
+
+				return fte.seekPtr;
+			}
+			else if (whence == SEEK_END)		//whence = 2
+			{
+				fte.seekPtr = lengthOfFile + offset;
+				if (fte.seekPtr <= 0)		//If the seek pointer is less or equal than zero, set to zero
+				{
+					fte.seekPtr = 0;
+				}
+
+				if (fte.seekPtr >= lengthOfFile)		//If the seek pointer is greater or equal to the length of file, then set to length of file
+				{
+					fte.seekPtr = lengthOfFile;
+				}
+
+				return fte.seekPtr;
+			}
+			else
+			{
+				return -1;		//Error, whence is not equal to 0, 1, or 2
+			}
+		}
+
+
 	}
 
 	//To be implemented
