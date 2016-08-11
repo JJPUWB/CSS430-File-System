@@ -57,7 +57,7 @@ public class FileSystem
 		{
 			byte[] directoryData = new byte[dirSize];
 			read(directoryEntry, directoryData);
-			directory.bytesToDirectory(directoryData);
+			directory.bytes2directory(directoryData);
 		}
 		close (directoryEntry);
 	}
@@ -68,7 +68,7 @@ public class FileSystem
 		//Declare a FileTableEntry and then point it at the file name '/' in mode WRITE
 		FileTableEntry FTE = open("/", "w");
 		//Create a temporary byte[] and convert the data waiting in the directory into bytes
-		byte[] bytes = directory.directoryToBytes();
+		byte[] bytes = directory.directory2bytes();
 		//Write those bytes into the filetable entry and then sync to superblock
 		write(FTE, bytes);
 		superblock.sync();
@@ -361,20 +361,29 @@ public class FileSystem
 	//To be implemented
 	int seek(FileTableEntry fte, int offset, int whence)
 	{
+		final int SEEK_SET = 0;
+		final int SEEK_CUR = 1;
+		final int SEEK_END = 2;
+
+		int fileSize = fsize( fte );
+		if( whence == SEEK_SET )
+			fte.seekPtr = offset;
+		else if( whence == SEEK_CUR )
+			fte.seekPtr += offset;
+		else if( whence == SEEK_END )
+			fte.seekPtr = fileSize + offset;
+		else
+			return -1;
+		if( fte.seekPtr < 0 )
+			fte.seekPtr = 0;
+		if( fte.seekPtr > fileSize )
+			fte.seekPtr = fileSize;
 		return 0;
 	}
 
-	//To be implemented
-	boolean delete(FileTableEntry fte)
-	{
-		return false;
-	}
-
-	//Just an interfacing method which is already implemented
-	boolean delete(Object fto)
-	{
-		FileTableEntry fte = (FileTableEntry)fto;
-		return false;
+	boolean delete(String fileName) {
+		short nameiNum = directory.namei(fileName);
+		return nameiNum != -1 && directory.ifree(nameiNum);
 	}
 
 	//Helper check method to ensure that the mode is valid
