@@ -353,28 +353,44 @@ public class FileSystem
 		}
 	}
 	
-	//To be implemented
-	int seek(FileTableEntry fte, int offset, int whence)
+	//Return the new seekPtr after seeking to a certain point in the file given by the offet and whence values
+	//Layered Calls: none
+	synchronized int seek(FileTableEntry FTE, int offset, int whence)
 	{
 		final int SEEK_SET = 0;
 		final int SEEK_CUR = 1;
 		final int SEEK_END = 2;
 
-		int fileSize = fsize( fte );
-		if( whence == SEEK_SET )
-			fte.seekPtr = offset;
-		else if( whence == SEEK_CUR )
-			fte.seekPtr += offset;
-		else if( whence == SEEK_END )
-			fte.seekPtr = fileSize + offset;
+		int fileSize = fsize(FTE);
+		if (whence == SEEK_SET)
+		{
+			FTE.seekPtr = offset;
+		}
+		else if(whence == SEEK_CUR)
+		{
+			FTE.seekPtr += offset;
+		}
+		else if(whence == SEEK_END)
+		{
+			FTE.seekPtr = fileSize + offset;
+		}
 		else
+		{
 			return -1;
-		if( fte.seekPtr < 0 )
-			fte.seekPtr = 0;
-		if( fte.seekPtr > fileSize )
-			fte.seekPtr = fileSize;
-		return 0;
+		}
+
+		if(FTE.seekPtr < 0)
+		{
+			FTE.seekPtr = 0;
+		}
+		else if(FTE.seekPtr > fileSize)
+		{
+			FTE.seekPtr = fileSize;
+		}
+
+		return FTE.seekPtr;
 	}
+
 
 	boolean delete(String fileName) {
 		short nameiNum = directory.namei(fileName);
