@@ -1,24 +1,24 @@
-/**
- * Created by Michael on 7/23/2015.
- */
-public class FileTableEntry
-{
-    public int seekPtr;                 //    a file seek pointer
-    public final Inode inode;           //    a reference to its inode
-    public final short iNumber;         //    this inode number
-    public int count;                   //    # threads sharing this entry
-    public final String mode;           //    "r", "w", "w+", or "a"
+//FileTableEntry.java
+//Team (Group 6): Jacob J. Parkinson, Duke Dynda, Fuli Lan, Nicolas Koudsieh
+//Original version by Professor Michael Panitz
+//UWB Su16 CSS430
+//No modifications have been made to this file
+//FINAL Version
 
-    public FileTableEntry ( Inode i, short inumber, String m )
-    {
-        seekPtr = 0;             // the seek pointer is set to the file top
+public class FileTableEntry {  // Each table entry should have
+    public int seekPtr;        //    a file seek pointer
+    public final Inode inode;  //    a reference to an inode
+    public final short iNumber;//    this inode number
+    public int count;          //    a count to maintain #threads sharing this
+    public final String mode;  //    "r", "w", "w+", or "a"
+    FileTableEntry ( Inode i, short inumber, String m ) {
+        seekPtr = 0;           // the seek pointer is set to the file top.
         inode = i;
         iNumber = inumber;
-        count = 1;               // at least on thread is using this entry
-        mode = m;                // once access mode is set, it never changes
-        if ( mode.compareTo( "a" ) == 0 ) // if mode is append,
-        {
-            seekPtr = inode.length;        // seekPtr points to the end of file
-        }
+        count = 1;           // at least one thread is using this entry.
+        mode = m;            // once file access mode is set, it never changes.
+
+        if ( mode.compareTo( "a" ) == 0 )
+            seekPtr = inode.length;
     }
 }

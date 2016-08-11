@@ -1,19 +1,35 @@
-/**
- * Created by Michael on 7/23/2015.
- */
-public class Superblock
-{
-    private final int defaultInodeBlocks = 64;
-    public int totalBlocks; // the number of disk blocks
-    public int totalInodes; // the number of inodes
-    public int freeList;    // the block number of the free list's head
+//Superblock.java for File System Final Project
+//Team (Group 6): Jacob J. Parkinson, Duke Dynda, Fuli Lan, Nicolas Koudsieh
+//CSS430 UWB Su16
 
+//Purpose: Manages the list of free blocks as well as keeping track of the total available number of
+//	    blocks and Inodes. Also has the ability to reformat the disk (outsourced by FileSystem.java
+//	    to Superblock.java
+//	    Outgoing calls:
+//		Most methods - SysLib.read/write and SysLib conversions
+//		Format - Inode.toDisk
+//	    Incoming Calls
+//		FileSystem.java calls format() for test #1
+//		FileSystem.sync calls sync()
+//		FileSystem constructor calls Superblock constructor
+//		FINAL Version
+class Superblock
+{
+    public int totalBlocks;		//# disk blocks
+    public int totalInodes;		//# inodes
+    public int freeList;			//block # of the free list's head
+    public int lastFreeBlock;	//# of last free block
+
+    //Constructor for the Superblock
+    //Layer calls: calls downward to sysLib
+    //		 Is called by the FileSystem constructor
     public Superblock(int diskSize)
     {
         //Read first disc block 0 from disk
         byte[] tmp = new byte[Disk.blockSize];
         SysLib.rawread(0, tmp);
         totalBlocks = SysLib.bytes2int(tmp, 0);
+        lastFreeBlock = SysLib.bytes2int(tmp, 12);
 
         //Create Inode blocks & increase data sentinel by 4
         totalInodes = SysLib.bytes2int(tmp, 4);
@@ -27,18 +43,12 @@ public class Superblock
         //	2. total number of Inodes should be 0
         //	3. total blocks free should be no more than two
         //	(one for the first initialized Inode, and one for the superblock's variables)
-        if (totalBlocks != diskSize || totalInodes != 0 || freeList >= 2)
+        if (totalBlocks != diskSize && totalInodes > 0 && freeList >= 2 && lastFreeBlock <= totalBlocks)
         {
-            //Error occurred
-            return;
-        }
-        //Otherwise, I can actually write the resultant free blocks and total blocks to disk:
-        else
-        {
-            //Internal call - call helper
+            totalBlocks = diskSize;
+            lastFreeBlock = diskSize - 1;
             format(64);
         }
-
     }
 
     //This method is required in order to solve test1 [format(48)] while respecting layer architecture
@@ -59,7 +69,7 @@ public class Superblock
 
         //Create the 0th Inode and move it onto disk (using the true param3)
         //According to the notes provided in the video on the Inode class, 64 is the default Inode#.
-        //Inode node = new Inode(64, freeList, true);
+        Inode node = new Inode(64, freeList, true);
 
         //Create a data byte[] to hold the file data
         byte[] buffer = new byte[Disk.blockSize];
@@ -86,74 +96,32 @@ public class Superblock
         sync();
     }
 
-    public int enqueueBlock(int blockNumber)
-    {
-        //write to first free block
-        return 0;
-    }
-
-    public int dequeueBlock()
-    {
-        //Delete last (not free) block
-        return 0;
-    }
-
-    public int getIndexOfFreeBlock()
-    {
-        //return first free block number
-        return freeList;
-    }
-
-    //Simple get method
-    public int getNumDiskBlocks()
-    {
-        //return total disk blocks
-        return totalBlocks;
-    }
-
-    //Simple get method
-    public int getNumInodes()
-    {
-        //return total inodes;
-        return totalInodes;
-    }
-
+    // Dequeue the top block from the free list
     public int getFreeBlock()
     {
-        // Dequeue the top block from the free list
         int topBlock = freeList;
-        if(topBlock != -1) {
+        if(topBlock != -1)
+		{
             byte[] freeBlock = new byte[Disk.blockSize];    // the next free block
-            SysLib.rawread(topBlock, freeBlock);
-            freeList = SysLib.bytes2int(freeBlock, 0);  // get the free block
-            SysLib.int2bytes(0, freeBlock, 0);
-            SysLib.rawwrite(topBlock, freeBlock);
+            SysLib.rawread(topBlock, freeBlock);    // read the blocks bytes
+            freeList = SysLib.bytes2int(freeBlock, 0);  // get the next free block for list
+            SysLib.int2bytes(0, freeBlock, 0);  // get bytes of the free block
+            SysLib.rawwrite(topBlock, freeBlock);   // for raw write
         }
         return topBlock;
     }
 
-
-    public boolean returnBlock(int blk)
-    {
-        //Enqueue a given block to the end of the free list
-        if(blk < 0)
-        {
-            return false;
+    // Enqueue a given block to the end of the free list
+    public int returnBlock(int blockNumber) {
+        if(blockNumber < totalInodes && blockNumber > totalBlocks) {    // error checking
+            return -1;
         }
-        else
-        {
-            byte[] data = new byte[512];
-
-            for(int i = 0; i < 512; ++i)
-            {
-                data[i] = 0;
-            }
-
-            SysLib.int2bytes(this.freeList, data, 0);
-            SysLib.rawwrite(blk, data);
-            this.freeList = blk;
-            return true;
-        }
+        byte[] end = new byte[Disk.blockSize];  // queuee to end of free list
+        SysLib.rawread(lastFreeBlock, end); // the next free block
+        SysLib.short2bytes((short)blockNumber, end, 0); // convert to bytes
+        SysLib.rawwrite(lastFreeBlock, end);    // for writing to block
+        lastFreeBlock = blockNumber;
+        return 0;   // return 0 in success
     }
 
     //Not initially included, but Superblock.java should have a sync() method instead of
@@ -167,9 +135,9 @@ public class Superblock
         SysLib.int2bytes(totalBlocks, tmp, 0);
         SysLib.int2bytes(totalInodes, tmp, 4);
         SysLib.int2bytes(freeList, tmp, 8);
+        SysLib.int2bytes(lastFreeBlock, tmp, 12);
 
         //Update the disk
         SysLib.rawwrite(0, tmp);
     }
 }
-

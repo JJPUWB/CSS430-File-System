@@ -1,7 +1,9 @@
 //TCB.java
-//Jacob J. Parkinson
+//Team (Group 6): Jacob J. Parkinson, Duke Dynda, Fuli Lan, Nicolas Koudsieh
+//UWB Su16 CSS430
+//No modifications have been made to this file
 //Implementation by Professor Michael Panitz
-
+//FINAL Version
 public class TCB
 {
 	//Private class variables
