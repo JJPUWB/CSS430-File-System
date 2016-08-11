@@ -2,9 +2,9 @@
 //Jacob J. Parkinson,Fuli Lan
 //Notes: initial code given by instructor / instructor videos
 
+//Directory stores information about each file
 public class Directory
 {
-    //Directory stores information about each file
 
     //Max characters in each file name
     private static int maxChars = 30;
@@ -30,7 +30,8 @@ public class Directory
         //root.getChars(0, size[0], fileName[0], 0);
     }
 
-    public int bytesToDirectory(byte[] data)
+    //Take the byte[] and enter them into the directory
+    public int bytes2directory(byte[] data)
     {
         //Assumes data[] received directory information from disk
         //Initializes the directory instance with this data[]
@@ -54,7 +55,6 @@ public class Directory
                 int bpos = j << 1;
                 fileName[i][j] = (char)(((data[bpos]&0x00FF)<<8) + (data[bpos + 1]&0x00FF));
             }
-
         }
 
         //Resultant structure:
@@ -77,20 +77,20 @@ public class Directory
         }
     }
 
-    public byte[] directoryToBytes()
+    //Output the directory's file names as a byte[]
+    public byte[] directory2bytes()
     {
-        //Loop through file names
-        //Convert directories filename to bytes
-        //Convert directories' filesize to bytes
-        //Return directory info as byte array
         int offset = 0;
         // create a new array
         byte[] arr = new byte[4* size.length + (size.length * maxChars * 2 )];
+
+        //Loop through file names
         for (int i = 0; i < size.length; i++)
         {
             SysLib.int2bytes(size[i], arr, offset);
             offset += 4;
         }
+        //Convert directories filename to bytes
         for (int i = 0; i <fileName.length; i++)
         {
             for (int j = 0; j < size[i]; j++)
@@ -100,18 +100,19 @@ public class Directory
                 arr[offset] = (byte)fileName[i][j];
             }
         }
+
+        //Return directory info as byte array
         return arr;
     }
 
+
+    //Give a free spot for a file in the directory
     public short ialloc(String fname)
     {
-        //Loop through filenames
-        //First one that's empty will allocate filaneme/filesize
-        //Return the location
-
         //Loop through the size array
         for (short i = 0; i < size.length; i++)
         {
+            //First one that's empty will allocate filaneme/filesize
             if (size[i] == 0)       //If size at this slot is zero, allocate a new inode number for this filename
             {
                 int minSize;
@@ -125,6 +126,8 @@ public class Directory
                 }
                 size[i] = minSize;      //Set length at slot 'i' equal to the minimum size
                 fname.getChars(0, minSize, fileName[i], 0);     //Copy the filename string into the file name array
+
+                //Return the location
                 return i;       //return the array index
             }
 
@@ -132,37 +135,40 @@ public class Directory
         return -1;      //else return -1 for error
     }
 
-    public boolean ifree(short iNumber) {
-        //Loop through all filenames at iNumber
-        //Deallocate filename at iNumber
-        //Delete the file and filesize
-        boolean get = true;
-        if (iNumber >= size.length || size[iNumber] == 0) {
+    //Takes an index rather than a name, avoiding the need for any loop
+    public boolean ifree(short iNumber)
+    {
+        if (iNumber >= size.length || iNumber < 0 || size[iNumber] == 0 || fileName[iNumber].length == 0)
+        {
             return false;
         }
-        //deallocate
-        fileName[iNumber] = null;
+
+        //Delete the file and filesize
         size[iNumber] = 0;
-        return get;
+
+        return true;
     }
 
+    //Very simple method to map a filename to an inode #
     public short namei(String fname)
     {
-        //Loop through maximum number of filenames
-        //until finding filename
-        //return that i node number
+        //Default return error
+        short ret = -1;
 
-        short get = -1;
+        //Loop through maximum number of filenames
         for (int i = 0; i < size.length; i++)
         {
+            //Typical Java string manipulation sequence
+            String tmp = new String (fileName[i], 0, size[i]);
 
-            if (fname.equalsIgnoreCase(new String(fileName[i])))
+            //until finding filename
+            if (tmp.equalsIgnoreCase(fname))
             {
-                get = (short)i;
+                ret = (short)i;
             }
-
         }
-        return get;
-    }
 
+        //return that i node number
+        return ret;
+    }
 }
