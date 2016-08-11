@@ -301,37 +301,43 @@ public class FileSystem
 		return FTE.inode.length;
 	}
 
-
+	// empty the inode and remove blocks from file table entry
+	// from memory then write to disk
 	private boolean deallocAllBlocks(FileTableEntry fte)
 	{
-		if(fte != null)
+		if(fte != null)	// error checking
 		{
 			fte.seekPtr = 0;
 			for(int i = 0; i < fte.inode.direct.length; i++)
 			{
+				// enqueue fte's direct's to end of free list
 				superblock.returnBlock(fte.inode.direct[i]);
 			}
+			// deallocate initializing all inode associations to 0
 			fte.inode.setLength(0);
 			fte.inode.setCount(0);
 			fte.inode.setFlag(0);
 
+			// set all direct pointers to zero (direct size is 11)
 			for(int i = 0; i < 11; i++)
 			{
 				fte.inode.direct[i] = 0;
 			}
 			return true;
 		}
-
-		else
+		else	// null error
 		{
 			return false;
 		}
 	}
 
+	// Destroys file specified by fileName
+	// If file is currently open, its not destroyed until last open on it is closed
+	// but new attempts to open it will fail.
 	boolean delete(String fileName)
 	{
 		short nameiNum = directory.namei(fileName);
-		return nameiNum != -1 && directory.ifree(nameiNum);
+		return nameiNum != -1 && directory.ifree(nameiNum);	// boolean
 	}
 
 	//Return the new seekPtr after seeking to a certain point in the file given by the offet and whence values
@@ -345,28 +351,30 @@ public class FileSystem
 		int fileSize = fsize(FTE);
 		if (whence == SEEK_SET)
 		{
-			FTE.seekPtr = offset;
+			FTE.seekPtr = offset;	// the file's seek pointer is set to offset bytes from the beginning of the file
 		}
 		else if(whence == SEEK_CUR)
 		{
-			FTE.seekPtr += offset;
+			// the file's seek pointer is set to its current value plus the offset
+			FTE.seekPtr += offset;	// the offset can be positive or negative
 		}
 		else if(whence == SEEK_END)
 		{
+			// the file's seek pointer is set to the size of the file plus the offset the offset can be positive or negative
 			FTE.seekPtr = fileSize + offset;
 		}
 		else
 		{
-			return -1;
+			return -1;	// error
 		}
 
 		if(FTE.seekPtr < 0)
 		{
-			FTE.seekPtr = 0;
+			FTE.seekPtr = 0;	// shouldn't be < 0
 		}
 		else if(FTE.seekPtr > fileSize)
 		{
-			FTE.seekPtr = fileSize;
+			FTE.seekPtr = fileSize;	// shouldn't be > file size
 		}
 
 		return FTE.seekPtr;
