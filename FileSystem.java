@@ -353,10 +353,6 @@ public class FileSystem
 			return false;
 		}
 	}
-
-	private final int SEEK_SET = 0;
-	private final int SEEK_CUR = 1;
-	private final int SEEK_END = 2;
 	
 	//To be implemented
 	int seek(FileTableEntry fte, int offset, int whence)
