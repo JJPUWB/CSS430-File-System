@@ -18,6 +18,12 @@ public class FileTable
     }                             // from the file system
 
     // major public methods
+    
+    // allocate a new file (structure) table entry for this file name
+    // allocate/retrieve and register the corresponding inode using dir
+    // increment this inode's count
+    // immediately write back this inode to the disk
+    // return a reference to this file (structure) table entry
     public synchronized FileTableEntry falloc( String filename, String mode )
     {
         Inode inode = null;
@@ -37,47 +43,49 @@ public class FileTable
             {  // there has to be a file
                 // setup to load inode from disk to memory
                 inode = new Inode(iNumber);
-                if(mode.equals("r"))
+                if(mode.equals("r"))    // read mode
                 {
+                    // file to read
                     if(inode.flag != 0 && inode.flag != 1)
                     {    // not unused nor used
-                        try
+                        try // can not write to the file
                         {
-                            wait();
+                            wait(); // wait to be notified by other thread
                         }
-                        catch (InterruptedException var7)
+                        catch (InterruptedException ie)
                         {
 
                         }
                         continue;
                     }
-                    inode.flag = 1;
+                    inode.flag = 1; // used
                     break;
                 }
 
-                if(inode.flag != 0 && inode.flag != 3)
+                if(inode.flag != 0 && inode.flag != 3)  // unused and write
                 {
-                    if(inode.flag == 1 || inode.flag == 2)
+                    // file to write
+                    if(inode.flag == 1 || inode.flag == 2)  // used or read
                     {
                         inode.flag = (short)(inode.flag + 3);
                     }
-                    try
+                    try // can not write to the file
                     {
-                        this.wait();
+                        this.wait();    // wait to be notified by other thread
                     }
-                    catch (InterruptedException var6)
+                    catch (InterruptedException ie)
                     {
 
                     }
                     continue;
                 }
-                inode.flag = 2;
+                inode.flag = 2; // set to read
                 break;
             }
 
-            if(mode.equals("r"))
+            if(mode.equals("r"))    // read
             {
-                return null;
+                return null;    // cant alloc
             }
 
             iNumber = dir.ialloc(filename);
@@ -86,16 +94,11 @@ public class FileTable
             break;
         }
 
-        inode.count++;
-        inode.toDisk(iNumber);
-        FileTableEntry fte = new FileTableEntry(inode, iNumber, mode);
-        table.addElement(fte);
+        inode.count++;  // increment count of inode allocated
+        inode.toDisk(iNumber);  // write the i number to disk
+        FileTableEntry fte = new FileTableEntry(inode, iNumber, mode);  // the file table entry
+        table.addElement(fte);  // add file table entry to table
         return fte;
-        // allocate a new file (structure) table entry for this file name
-        // allocate/retrieve and register the corresponding inode using dir
-        // increment this inode's count
-        // immediately write back this inode to the disk
-        // return a reference to this file (structure) table entry
     }
 
     // free memory and store on disk instead
