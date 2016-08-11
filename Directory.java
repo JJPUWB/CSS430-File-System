@@ -1,5 +1,5 @@
 //Directory.Java
-//Jacob J. Parkinson,Fuli Lan
+//Team (Group 6): Jacob J. Parkinson, Duke Dynda, Fuli Lan, Nicolas Koudsieh
 //Notes: initial code given by instructor / instructor videos
 
 //Directory stores information about each file
@@ -171,4 +171,6 @@ public class Directory
         //return that i node number
         return ret;
     }
+
+
 }

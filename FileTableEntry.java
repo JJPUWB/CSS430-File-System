@@ -1,5 +1,5 @@
 //FileTableEntry.java
-//Team: Jacob J. Parkinson, Fuli Lan, Duke Dynda, Nicholas Koudsieh
+//Team (Group 6): Jacob J. Parkinson, Duke Dynda, Fuli Lan, Nicolas Koudsieh
 //Original version by Professor Michael Panitz
 //UWB Su16 CSS430
 //No modifications have been made to this file

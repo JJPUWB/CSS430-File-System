@@ -1,5 +1,7 @@
 //FileSystem.java
-//Jacob J. Parkinson
+//Team (Group 6): Jacob J. Parkinson, Duke Dynda, Fuli Lan, Nicolas Koudsieh
+//UWB Su16 CSS430
+
 //Purpose: Given a byte[], it'll read & write blocks so as to create the illusion that the
 //		   file is a giant byte array (video). Basically uses the Singleton Class Architecture.
 //		   Responsible for managing the logic related to the fileSystem. Handles logic of reading off of
@@ -8,9 +10,9 @@
 //		   below the Kernel (which implements SysLib)
 //
 //
-//Inter-class communication Specifications: 
+//Inter-class communication Specifications:
 //	Incoming:
-//		The Kernel is given a file descriptor by sysLib; this is further converted into a 
+//		The Kernel is given a file descriptor by sysLib; this is further converted into a
 //		FileTableEntry by the TCB based on which file it corresponds to. This is then fed to
 //		FileSystem.java
 //	Outgoing:
@@ -29,30 +31,33 @@
 //		use Directory.java to map the file name to the Inode in between loading the Inode from the
 //		disk into memory and creating an FTE
 //
+
 public class FileSystem
 {
-
 	private Superblock superblock;
 	private Directory directory;
 	private FileTable filetable;
+	private final int SEEK_SET = 0;
+	private final int SEEK_CUR = 1;
+	private final int SEEK_END = 2;
 
 	//Constructor, provided by instructor
 	public FileSystem(int diskBlocks)
 	{
 		//Create superBlock, and format disk with 64 Inodes in default
 		superblock = new Superblock(diskBlocks);
-		
+
 		//Create directory, and register "/" in directory entry 0 (done internally to directory.java)
 		//directory = new Directory(superblock.inodeBlocks);
-		directory = new Directory(superblock.totalInodes);		
+		directory = new Directory(superblock.totalInodes);
 
 		//File table is created, and store directory int he file table
 		filetable = new FileTable(directory);
-		
+
 		//Directory reconstruction
 		FileTableEntry directoryEntry = open("/", "r");
 		int dirSize = fsize(directoryEntry);
-		
+
 		if (dirSize > 0)
 		{
 			byte[] directoryData = new byte[dirSize];
@@ -80,7 +85,7 @@ public class FileSystem
 	//			   -> new fileTable
 	boolean format(int files)
 	{
-		//Format() must accomplish a reformatting task for each module in the underlying layer, 
+		//Format() must accomplish a reformatting task for each module in the underlying layer,
 		//except Inode. Each module should independently reformat themselves
 
 
@@ -89,21 +94,21 @@ public class FileSystem
 		{
 			return false;
 		}
-		
+
 		//1. Reformat the superblock
 		//For this purpose, utilize the superblock.format to reformat the disk with a new
 		//number of files
 		superblock.format(files); //I don't think I can just reread from disk?
-		
+
 		//2. With the new superblock, recreate the directory just as it was made in the constructor
-		directory = new Directory(superblock.totalInodes);		
+		directory = new Directory(superblock.totalInodes);
 
 		//3. With the new superblock, recreate the filetable just as it was made in the constructor
 		filetable = new FileTable(directory);
-		
+
 		return true;
 	}
-	
+
 	//Get me a FileTableEntry to give to the caller which represents the fileName given
 	//Layered calls: open -> filetable.falloc() -> directory.namei/ialloc
 	FileTableEntry open(String fileName, String mode)
@@ -112,17 +117,10 @@ public class FileSystem
 		{
 			return null;
 		}
-		
+
 		//Take fileName and mode and use the FileTable's interface with the directory to
 		//get me an FTE
 		FileTableEntry FTE = filetable.falloc(fileName, mode);
-
-		if(mode.equals("w")) {
-			boolean deallocSuccess = deallocAllBlocks(FTE);
-			if(!deallocSuccess) {
-				return null;
-			}
-		}
 
 		//Check if the FileTable was able to use the Directory to map the fileName to an INode
 		if (FTE == null)
@@ -132,10 +130,12 @@ public class FileSystem
 		//If it was, return the FileTableEntry
 		else
 		{
+
 			return FTE;
 		}
-		
+
 	}
+
 
 	//Just close the filetableEntry that I'm given.
 	boolean close(FileTableEntry FTE)
@@ -144,7 +144,7 @@ public class FileSystem
 		boolean delegate = filetable.ffree(FTE);
 		return delegate;
 	}
-	
+
 	//Just return the size with an error check
 	int fsize(FileTableEntry fte)
 	{
@@ -224,16 +224,15 @@ public class FileSystem
 		return LeftSentinel;
 	}
 
-
-
 	//Write some byte[] buffer into a file represented by an FTE
 	//Layer calls: call up to kernel to use rawwrite
-	//			   call down to Inode.mapOffset and other methods in Inode,
+	//			   call down to Inode.mapOffset and other methods in Inode such as the setupInodeBlock & addIndex
 	//			   		through a call sideways to the FTE.inode
-	int write(FileTableEntry FTE, byte[] buffer)
+	//			   call to superblock to get a new free block
+	synchronized int write(FileTableEntry FTE, byte[] buffer)
 	{
-		//As we are meant to code defensively, I should check that the mode is 'write/+'
-		if (FTE.mode != "w" && FTE.mode != "w+")
+		//Write works for a = append, w = write, w+ = write+, but not r = read
+		if(FTE.mode != "w" && FTE.mode != "w+" && FTE.mode != "a")
 		{
 			return -1;
 		}
@@ -242,117 +241,107 @@ public class FileSystem
 			return -1;
 		}
 
-		//The current block to be writing to. Depending on the size of the write, we may need more than 1.
-		//THIS IS NECESSARY to pass tests where a large amount of byte data is written! Note that this is the
-		//block's number, not the block index that we map to within the loop!!
-		int currentBlock = FTE.seekPtr;
-
-		//The size to write
-		int writeSize = buffer.length;
-
-
-		//Each loop iteration represents a write of a set 512B size or less
+		//Each loop iteration represents a write of a set 512B size or less; the entire loop should be thought of
+		//as a sort of buffer where two sentinels stand at both ends, and the LeftSentinel marches closer to the
+		//WriteSentinel
 		int LeftSentinel = 0;
-		while (LeftSentinel < writeSize)
+		int WriteSentinel = buffer.length;
+		while(LeftSentinel < WriteSentinel)
 		{
-			//We're given an FTE who is all set up to be used to find any Inode data from it. This means that
-			//the seek pointer has already been sought to the block that has the file data to write into for iteration 0
-			//and for any subsequent iterations, the current block has been incremented and must be used to map the new
-			//offset
-			int blockIdx = FTE.inode.mapOffset(currentBlock);
+			//Firstly, map the offset to a block
+			int blockIdx = FTE.inode.mapOffset(FTE.seekPtr);
 
-			//If we need to, let's go ahead and get a new free block for iteration 0.
-			if (blockIdx < 0 )
+			//If we need to, let's go ahead and get a new free block & setup the Inode
+			//Turns out, this is a lot more difficult than expected.
+			if(blockIdx < 0)
 			{
+				//It's simple enough to get the free block, given the layered call implementation.
 				blockIdx = superblock.getFreeBlock();
+				//Add an index in the Inode (if there's an unused index, then it will not add anything)
+				FTE.inode.addIndex(superblock.getFreeBlock());
+				//Utilize the recently added index (or an open one) for the new Inode block
+				FTE.inode.modifyBlockMap(FTE.seekPtr, blockIdx);
 			}
 
-			//Within the loop, one last task to do is to increment by the amount read which is typically 512B
+			//Within the loop, one important task to do is to increment by the amount read which is typically 512B
 			//Increment = 512B by default; but can be less
-			int increment = 512;
+			int increment = 512 - (FTE.seekPtr % 512);
+			increment = Math.min(increment, (WriteSentinel - LeftSentinel));
 
-			//Increment the sentinel and the current block if needed
-			//Case: there's less than 512B to write, so I've got to write a partial block
-			if ((LeftSentinel + increment) > writeSize)
+			//Temporary write array used once per loop
+			byte[] tmpWrite = new byte[512];
+
+			//The read statement seems out of place in the write method, but I actually need it to 'fetch' me
+			//the block data into tmpWrite
+			SysLib.rawread(blockIdx, tmpWrite);
+
+			//Copy the contents of buffer, starting at the LeftSentinel, into tmpWrite, starting at the
+			//current offset, over the length of the increment.
+			//This needs to use 512 bytes from buffer into a tmpWrite array so that I can actually use rawwrite without
+			//screwing up and trying to write more than 512B into a 512B block
+			for (int i = 0, j = (FTE.seekPtr % 512); i < increment; i++, j++)
 			{
-				//Temporary write array used once per loop
-				byte[] tmpWrite = new byte[increment];
-				byte[] tmpWrite2 = new byte[increment];
-				//The read statement seems out of place in the write method, but I actually need it to 'fetch' me
-				//the block data into tmpWrite - read an entire block as usual, but we'll overwrite part of it
-				SysLib.rawread(blockIdx, tmpWrite);
-
-				for (int i = 0; i < writeSize - LeftSentinel; i++)
-				{
-					tmpWrite[i] = buffer[LeftSentinel + i];
-				}
-
-
-				for (int i = 0; i < writeSize - LeftSentinel; i++)
-				{
-					tmpWrite2[i] = tmpWrite[i];
-				}
-
-				SysLib.rawwrite(blockIdx, tmpWrite2);
-
-
-				LeftSentinel = writeSize;
+				tmpWrite[j] = buffer[LeftSentinel + i];
 			}
-			//Case: there's more than 512B to write, so just write an entire block
-			else
+
+			//The actual entire goal of the function is acocmplished!!!
+			SysLib.rawwrite(blockIdx, tmpWrite);
+
+			//LeftSentinel marches closer to the WriteSentinel
+			LeftSentinel += increment;
+
+			//I can also increment the seek pointer in the loop like this
+			if((FTE.seekPtr + increment) > FTE.inode.length)
 			{
-				//Temporary write array used once per loop
-				byte[] tmpWrite = new byte[increment];
-				//The read statement seems out of place in the write method, but I actually need it to 'fetch' me
-				//the block data into tmpWrite
-				SysLib.rawread(blockIdx, tmpWrite);
-
-				//Write the 512 bytes from buffer into a tmpWrite array so that I can actually use rawwrite without
-				//screwing up and trying to write more than 512B into a 512B block
-
-				for (int i = 0; i < increment; i++)
-				{
-					tmpWrite[i] = buffer[LeftSentinel + i];
-				}
-
-				//The actual entire goal of the function is acocmplished!!!
-				SysLib.rawwrite(blockIdx, tmpWrite);
-
-				//Increment by x Bytes
-				LeftSentinel += increment;
-				currentBlock += increment;
+				FTE.inode.setLength(FTE.seekPtr + increment);
 			}
+
+			//Regardless, increment the seekPtr
+			FTE.seekPtr += increment;
 		}
-
-
-		//The only time I need to explicitly modify the Inode. To preserve layered architecture, I use the
-		//inode.updateLength()
-		FTE.inode.setLength(writeSize + FTE.inode.length);
-
-		//Return the updated iNode length because this is the original length + the written bytes
+		//Return the FTE.inode.length because it's equivalent by now to the seekPtr + the total increments
 		return FTE.inode.length;
 	}
 
-	//
+	// empty the inode and remove blocks from file table entry
+	// from memory then write to disk
 	private boolean deallocAllBlocks(FileTableEntry fte)
 	{
-		if(fte != null) {
+		if(fte != null)	// error checking
+		{
 			fte.seekPtr = 0;
-			for(int i = 0; i < fte.inode.direct.length; i++) {
+			for(int i = 0; i < fte.inode.direct.length; i++)
+			{
+				// enqueue fte's direct's to end of free list
 				superblock.returnBlock(fte.inode.direct[i]);
 			}
-			fte.inode.length = 0;
-			fte.inode.count = 0;
-			fte.inode.flag = 0;
-			for(int i = 0; i < 11; i++) {
+			// deallocate initializing all inode associations to 0
+			fte.inode.setLength(0);
+			fte.inode.setCount(0);
+			fte.inode.setFlag(0);
+
+			// set all direct pointers to zero (direct size is 11)
+			for(int i = 0; i < 11; i++)
+			{
 				fte.inode.direct[i] = 0;
 			}
 			return true;
-		} else {
+		}
+		else	// null error
+		{
 			return false;
 		}
 	}
-	
+
+	// Destroys file specified by fileName
+	// If file is currently open, its not destroyed until last open on it is closed
+	// but new attempts to open it will fail.
+	boolean delete(String fileName)
+	{
+		short nameiNum = directory.namei(fileName);
+		return nameiNum != -1 && directory.ifree(nameiNum);	// boolean
+	}
+
 	//Return the new seekPtr after seeking to a certain point in the file given by the offet and whence values
 	//Layered Calls: none
 	synchronized int seek(FileTableEntry FTE, int offset, int whence)
@@ -364,37 +353,33 @@ public class FileSystem
 		int fileSize = fsize(FTE);
 		if (whence == SEEK_SET)
 		{
-			FTE.seekPtr = offset;
+			FTE.seekPtr = offset;	// the file's seek pointer is set to offset bytes from the beginning of the file
 		}
 		else if(whence == SEEK_CUR)
 		{
-			FTE.seekPtr += offset;
+			// the file's seek pointer is set to its current value plus the offset
+			FTE.seekPtr += offset;	// the offset can be positive or negative
 		}
 		else if(whence == SEEK_END)
 		{
+			// the file's seek pointer is set to the size of the file plus the offset the offset can be positive or negative
 			FTE.seekPtr = fileSize + offset;
 		}
 		else
 		{
-			return -1;
+			return -1;	// error
 		}
 
 		if(FTE.seekPtr < 0)
 		{
-			FTE.seekPtr = 0;
+			FTE.seekPtr = 0;	// shouldn't be < 0
 		}
 		else if(FTE.seekPtr > fileSize)
 		{
-			FTE.seekPtr = fileSize;
+			FTE.seekPtr = fileSize;	// shouldn't be > file size
 		}
 
 		return FTE.seekPtr;
-	}
-
-
-	boolean delete(String fileName) {
-		short nameiNum = directory.namei(fileName);
-		return nameiNum != -1 && directory.ifree(nameiNum);
 	}
 
 	//Helper check method to ensure that the mode is valid
