@@ -102,31 +102,31 @@ class Superblock
         sync();
     }
 
+    // Dequeue the top block from the free list
     public int getFreeBlock()
     {
-        // Dequeue the top block from the free list
         int topBlock = freeList;
         if(topBlock != -1) {
             byte[] freeBlock = new byte[Disk.blockSize];    // the next free block
-            SysLib.rawread(topBlock, freeBlock);
-            freeList = SysLib.bytes2int(freeBlock, 0);  // get the free block
-            SysLib.int2bytes(0, freeBlock, 0);
-            SysLib.rawwrite(topBlock, freeBlock);
+            SysLib.rawread(topBlock, freeBlock);    // read the blocks bytes
+            freeList = SysLib.bytes2int(freeBlock, 0);  // get the next free block for list
+            SysLib.int2bytes(0, freeBlock, 0);  // get bytes of the free block
+            SysLib.rawwrite(topBlock, freeBlock);   // for raw write
         }
         return topBlock;
     }
 
+    // Enqueue a given block to the end of the free list
     public int returnBlock(int blockNumber) {
-        // Enqueue a given block to the end of the free list
-        if(blockNumber < totalInodes && blockNumber > totalBlocks) {
+        if(blockNumber < totalInodes && blockNumber > totalBlocks) {    // error checking
             return -1;
         }
-        byte[] end = new byte[Disk.blockSize];
-        SysLib.rawread(lastFreeBlock, end);
-        SysLib.short2bytes((short)blockNumber, end, 0);
-        SysLib.rawwrite(lastFreeBlock, end);
+        byte[] end = new byte[Disk.blockSize];  // queuee to end of free list
+        SysLib.rawread(lastFreeBlock, end); // the next free block
+        SysLib.short2bytes((short)blockNumber, end, 0); // convert to bytes
+        SysLib.rawwrite(lastFreeBlock, end);    // for writing to block
         lastFreeBlock = blockNumber;
-        return 0;
+        return 0;   // return 0 in success
     }
 
     //Not initially included, but Superblock.java should have a sync() method instead of
