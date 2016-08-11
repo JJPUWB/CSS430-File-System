@@ -116,7 +116,14 @@ public class FileSystem
 		//Take fileName and mode and use the FileTable's interface with the directory to
 		//get me an FTE
 		FileTableEntry FTE = filetable.falloc(fileName, mode);
-		
+
+		if(mode.equals("w")) {
+			boolean deallocSuccess = deallocAllBlocks(FTE);
+			if(!deallocSuccess) {
+				return null;
+			}
+		}
+
 		//Check if the FileTable was able to use the Directory to map the fileName to an INode
 		if (FTE == null)
 		{
@@ -125,10 +132,8 @@ public class FileSystem
 		//If it was, return the FileTableEntry
 		else
 		{
-			
 			return FTE;
 		}
-		
 	}
 
 	//Just close the filetableEntry that I'm given.
@@ -308,7 +313,21 @@ public class FileSystem
 	//
 	private boolean deallocAllBlocks(FileTableEntry fte)
 	{
-		return false;
+		if(fte != null) {
+			fte.seekPtr = 0;
+			for(int i = 0; i < fte.inode.direct.length; i++) {
+				superblock.returnBlock(fte.inode.direct[i]);
+			}
+			fte.inode.length = 0;
+			fte.inode.count = 0;
+			fte.inode.flag = 0;
+			for(int i = 0; i < 11; i++) {
+				fte.inode.direct[i] = 0;
+			}
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	private final int SEEK_SET = 0;
