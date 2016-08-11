@@ -60,27 +60,36 @@ public class Inode
 	}
 
 	//retrieving the inode from the disk
-	//Layer calls: calls downward to SysLib to retrieve an Inode from the disk and initialize 
+	//Layer calls: calls downward to SysLib to retrieve an Inode from the disk and initialize
 	//itself with the retreived Inode
 	Inode (short iNumber)
 	{
+		//Next free block to use
 		int blockNumber = 1 + (iNumber / 16);
-        byte[] data = new byte[Disk.blockSize];
-        SysLib.rawread(blockNumber, data);
-        int offset = (iNumber % 16) * 32;
 
-        length = SysLib.bytes2int(data, offset);
-        offset += 4;
-        count = SysLib.bytes2short(data, offset);
-        offset += 2;
-        flag = SysLib.bytes2short(data, offset);
-        offset += 2;
+		byte[] tmpRead = new byte[Disk.blockSize];
+		SysLib.rawread(blockNumber, tmpRead);
+		int offset = (iNumber % 16) * 32;
 
-        for(int i = 0; i < directSize; i++) {
-            offset += 2;
-            direct[i] = SysLib.bytes2short(data, offset);
-        }
-        indirect = SysLib.bytes2short(data, offset);
+		//Code very must inspired by the Test5 code showing how this works
+		//Set up the length
+		length = SysLib.bytes2int(tmpRead, offset);
+		offset += 4;
+		//Set up the count
+		count = SysLib.bytes2short(tmpRead, offset);
+		offset += 2;
+		//Set up the flag
+		flag = SysLib.bytes2short(tmpRead, offset);
+		offset += 2;
+
+		//Set each direct block
+		for(int i = 0; i < directSize; i++)
+		{
+			direct[i] = SysLib.bytes2short(tmpRead, offset);
+			offset += 2;
+		}
+		//Set the indirect block
+		indirect = SysLib.bytes2short(tmpRead, offset);
 	}
 
 	//save to the disk as the i-th node
