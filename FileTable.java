@@ -83,22 +83,42 @@ public class FileTable {
 
     // free memory and store on disk instead
     // 0 = unused, 1 = used, 2 = read, 3 = write, 4 = delete.
-    public synchronized boolean ffree( FileTableEntry fte ) {
-        // receive a file table entry reference
-        if(table.removeElement(fte)) {  // fte is a file table entry
-            // free this file table entry.
-            fte.inode.count--;
-            if(fte.inode.flag == 2 || fte.inode.flag == 3) {
-                fte.inode.flag = 0;
+    public synchronized boolean ffree( FileTableEntry FTE )
+    {
+        if (FTE == null)
+        {
+            return false;
+        }
+
+        //If there exists some such FTE
+        if (table.contains(FTE))
+        {
+            //Then remove it
+            table.removeElement(FTE);
+
+            //Decrement the counts of references to the Inode (but don't go negative!)
+            if (FTE.inode.count >= 1)
+            {
+                FTE.inode.count--;
             }
+            //Remember that the FileTable is allowed to close a file when there no longer exist any references to it
+            FTE.inode.flag = 0;
+
             // save the corresponding inode to the disk
-            fte.inode.toDisk(fte.iNumber);
-            fte = null;
+            FTE.inode.toDisk(FTE.iNumber);
+
+            //Deallocate memory space
+            FTE = null;
+
+            //Notify that the file has been closed
             notify();
-            // return true if this file table entry found in my table
+
+            // return true
             return true;
         }
-        else {
+        //The FTE being removed doesn't exist
+        else
+        {
             return false;
         }
     }
