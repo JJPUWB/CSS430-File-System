@@ -108,20 +108,28 @@ public class Directory
         //Loop through filenames
         //First one that's empty will allocate filaneme/filesize
         //Return the location
-        short new_size = 0;
-        for (int i = 0; i < size.length; i++)
+
+        //Loop through the size array
+        for (short i = 0; i < size.length; i++)
         {
-            //if the fname's length is over max chars, then return error
-            if (fname.length() > maxChars)
+            if (size[i] == 0)       //If size at this slot is zero, allocate a new inode number for this filename
             {
-                SysLib.cout("Error");
-                break;
+                int minSize;
+                if (fname.length() <= maxChars)     //if length of the filename is less or equal than 30, use its length
+                {
+                    minSize = fname.length();
+                }
+                else
+                {
+                    minSize = maxChars;
+                }
+                size[i] = minSize;      //Set length at slot 'i' equal to the minimum size
+                fname.getChars(0, minSize, fileName[i], 0);     //Copy the filename string into the file name array
+                return i;       //return the array index
             }
-            size[i] = fname.length();
-            fname.getChars(0, size[i], fileName[i], 0);
-            return new_size;
+
         }
-        return -1;
+        return -1;      //else return -1 for error
     }
 
     public boolean ifree(short iNumber) {
